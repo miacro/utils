@@ -1,0 +1,114 @@
+#!/bin/sh
+function usage (){
+  echo "usage: make-virtual-machine [options]"
+  echo "  options:"
+  echo "    -h --help usage"
+  echo "    -o --output=output file"
+  echo "       --squashfs-image=squashfs image"
+  echo "       --vm-size=vm size MB"
+  echo "       --esp-size=esp size MB"
+  echo "       --disk=disk"
+  exit
+}
+GETOPT_ARGS=`getopt -o o:h -l output:,squashfs-image:,vm-size:,esp-size:,disk:,help -- "$@"`
+eval set -- ${GETOPT_ARGS}
+
+OUTPUT=virtual-machine-$(date +%Y-%m-%dT%H-%M-%S).image
+
+VM_SIZE=$[40*1024] #M
+ESP_SIZE=499 #M
+SQUASHFS_IMAGE=""
+DISK=""
+
+while [ ${1} ]
+do
+  case ${1} in
+    -o|--output) OUTPUT=${2};shift 2; continue;;
+    --squashfs-image) SQUASHFS_IMAGE=${2};shift 2; continue;;
+    --vm-size) VM_SIZE=${2};shift 2; continue;;
+    --esp-size) ESP_SIZE=${2};shift 2; continue;;
+    --disk) DISK=${2};shift 2; continue;;
+    --) shift 1;;
+    -h|--help|*) usage;;
+  esac
+done
+
+if [[ ! -n ${SQUASHFS_IMAGE} ]]
+then
+  usage
+fi
+
+DISK_SIZE=0
+if [[ -n ${DISK} ]]
+then
+  DISK_SIZE=$(parted -s ${DISK} unit MiB print) \
+  && DISK_SIZE=${DISK_SIZE#*Disk ${DISK}:} \
+  && DISK_SIZE=${DISK_SIZE%%MiB*} \
+  && OUTPUT=${DISK} \
+  && [[ ${VM_SIZE} -gt ${DISK_SIZE} ]] \
+  && VM_SIZE=${DISK_SIZE} \
+  || exit 
+fi
+
+CACHE_DIR=$(pwd)/.cache
+mkdir -p ${CACHE_DIR}
+
+ESP_CACHE=${CACHE_DIR}/esp.image.cache
+MOUNT_CACHE=${CACHE_DIR}/root
+MOUNT_ESP=${MOUNT_CACHE}/boot/esp
+
+HEAD_SIZE=1 #M
+ROOT_SIZE=$[VM_SIZE - ESP_SIZE - HEAD_SIZE*2] #M
+SECTOR_SIZE=512 #Byte
+
+ESP_START=$[HEAD_SIZE*1024*1024] #Byte
+ROOT_START=$[ESP_START+ESP_SIZE*1024*1024] #Byte
+
+[[ ${DISK} != ${OUTPUT} ]] \
+&& echo "==========generate virtual machine" \
+&& dd if=/dev/zero of=${OUTPUT} bs=256M count=$[VM_SIZE/256] \
+|| echo "==========install into ${OUTPUT}"
+
+echo "==========foramt root partion"
+mkfs.ext4 -L root -E nodiscard,offset=$[ROOT_START] ${OUTPUT} ${ROOT_SIZE}M
+
+echo "==========generate esp"
+dd if=/dev/zero of=${ESP_CACHE} bs=1M count=${ESP_SIZE}
+echo "==========format esp"
+mkfs.vfat -n esp ${ESP_CACHE}
+echo "==========copy esp into vm image"
+dd if=${ESP_CACHE} of=${OUTPUT} bs=1M seek=${HEAD_SIZE} conv=notrunc
+rm ${ESP_CACHE}
+
+echo "==========partion"
+#GPT: reserved 1MiB at head and tail
+parted -s ${OUTPUT} -- \
+  unit MiB \
+  mklabel gpt \
+  mkpart esp ${HEAD_SIZE}MiB $[ROOT_START - 1]B \
+  set 1 esp on \
+  mkpart root ${ROOT_START}B -${HEAD_SIZE}MiB \
+  || exit
+#sgdisk --zap-all --clear --mbrtogpt ${OUTPUT}
+#sgdisk --new=1:$[ESP_START/SECTOR_SIZE]:$[ROOT_START/SECTOR_SIZE - 1] --change-name=1:esp ${OUTPUT}
+#sgdisk --new=2:$[ROOT_START/SECTOR_SIZE]: --change-name=2:root ${OUTPUT}
+
+GRUB_MODULES="part_gpt part_msdos gptsync hfs hfsplus btrfs fat ext2 \
+              iso9660 reiserfs scsi normal configfile chain appleldr \
+              configfile linux multiboot boot efi_gop linux echo \
+              cpio cat cpio hexdump ls date minicmd"
+echo "==========prepare root file system"
+sudo su -c "mkdir -p ${MOUNT_CACHE} \
+    && mount -o offset=${ROOT_START} ${OUTPUT} ${MOUNT_CACHE} \
+    && unsquashfs -f -d ${MOUNT_CACHE} ${SQUASHFS_IMAGE} \
+    && cp ${MOUNT_CACHE}/boot/grub/grub.cfg ${CACHE_DIR} \
+    && umount ${MOUNT_CACHE} \
+    && echo \"==========install grub\" \
+    && mkdir -p ${MOUNT_ESP} \
+    && mount -o offset=${ESP_START} ${OUTPUT} ${MOUNT_ESP} \
+    && grub-install --removable --recheck --bootloader-id=boot --efi-directory=${MOUNT_ESP} --boot-directory=${MOUNT_ESP} ${OUTPUT} \
+    && grub-mkimage -d /usr/lib64/grub/x86_64-efi -O x86_64-efi -p /grub -o ${MOUNT_ESP}/EFI/boot/bootx64.efi ${GRUB_MODULES} \
+    && cp ${CACHE_DIR}/grub.cfg ${MOUNT_ESP}/grub/grub.cfg \
+    && umount ${MOUNT_ESP} \
+    && rm -r ${MOUNT_CACHE}"
+rm -r ${CACHE_DIR}

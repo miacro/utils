@@ -1,0 +1,7 @@
+[Unit]
+Description=keep external disk alive
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/touch /mnt/repository/.keepalive

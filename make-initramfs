@@ -1,0 +1,43 @@
+#!/bin/sh
+function usage (){
+  echo "usage: make-initramfs [options] directory"
+  echo "  directory: the root directory"
+  echo "  options:"
+  echo "    -o --output output file, default: initramfs.cpio.gz"
+  echo "       --help usage"
+  exit
+}
+GETOPT_ARGS=`getopt -o o:h -l output:,help -- "$@"`
+eval set -- ${GETOPT_ARGS}
+
+output=""
+initramfs_root=""
+while [ ${1} ]
+do
+  case ${1} in
+    -o|--output) output=${2};shift 2; continue;;
+    --) shift 1; initramfs_root=${1}; shift 1; continue;;
+    -h|--help|*) usage;;
+  esac
+done
+
+if [[ ! -n ${output} ]]
+then
+  output=initramfs.cpio.gz
+fi
+
+if [[ ! -n ${initramfs_root} ]]
+then
+  usage
+fi
+
+mkdir -p ${initramfs_root}/{bin,dev,etc,lib32,lib64,proc,root,sbin,sys}
+ln -s lib64 ${initramfs_root}/lib
+#cp -a /dev/{null,console,tty,sda1} ${initramfs_root}/dev/
+cp -a /bin/busybox ${initramfs_root}/bin/
+cp ./init ${initramfs_root}/
+
+mkdir -p ${initramfs_root}/{usr/sbin,usr/bin,sbin,bin}
+chroot ${initramfs_root} /bin/busybox --install -s
+
+find ${initramfs_root} -print0 | cpio --null -ov --format=newc | gzip -9 > ${output}

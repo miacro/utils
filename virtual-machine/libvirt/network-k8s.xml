@@ -1,0 +1,15 @@
+<network>
+  <name>k8s</name>
+  <bridge name="k8sbr0"/>
+  <forward mode="nat"/>
+  <ip address="172.16.8.1" netmask="255.255.255.0">
+    <dhcp>
+      <range start="172.16.8.2" end="172.16.8.254"/>
+      <host mac="52:0d:05:43:34:35" name="k8s-master" ip="172.16.8.2"/>
+      <host mac="52:0d:05:43:34:36" name="k8s-slave-1" ip="172.16.8.3"/>
+      <host mac="52:0d:05:43:34:37" name="k8s-slave-2" ip="172.16.8.4"/>
+      <host mac="52:0d:05:43:34:38" name="k8s-slave-3" ip="172.16.8.5"/>
+    </dhcp>
+  </ip>
+  <ip family="ipv6" address="2001:db8:ca2:2::1" prefix="64"/>
+</network>

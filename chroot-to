@@ -1,0 +1,40 @@
+#!/bin/sh
+function usage (){
+  echo "usage: chroot-to [options] directory"
+  echo "  directory: the root directory"
+  echo "  options:"
+  echo "    -s --shell shell, default: /bin/bash"
+  echo "       --help usage"
+  exit
+}
+GETOPT_ARGS=`getopt -o s:h -l shell:,help -- "$@"`
+eval set -- ${GETOPT_ARGS}
+
+root_dir=""
+shell_bin=""
+
+while [ ${1} ]
+do
+  case ${1} in
+    -s|--shell) shell_bin=${2};shift 2; continue;;
+    --) shift 1; root_dir=${1}; shift 1; continue;;
+    -h|--help|*) usage;;
+  esac
+done
+
+if [[ ! -n ${shell_bin} ]]
+then
+  shell_bin=/bin/bash
+fi
+
+if [[ ! -n ${root_dir} ]]
+then
+  usage
+fi
+
+mount -t proc proc ${root_dir}/proc
+mount --rbind /sys ${root_dir}/sys
+mount --make-rslave ${root_dir}/sys
+mount --rbind /dev ${root_dir}/dev
+mount --make-rslave ${root_dir}/dev
+chroot ${root_dir}/ ${shell_bin}

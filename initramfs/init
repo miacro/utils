@@ -1,0 +1,34 @@
+#!/bin/busybox sh
+
+function rescue_shell() {
+  echo "Something went wrong. Dropping to a shell.";
+  exec sh
+}
+
+function cmdline() {
+  local value
+    value=" $(cat /proc/cmdline) "
+    value="${value##* $1=}"
+    value="${value%% *}"
+    [ "$value" != "" ] && echo "$value"
+}
+#/bin/busybox mkdir -p /usr/sbin /usr/bin /sbin /bin
+#/bin/busybox --install -s
+
+# Mount the /proc and /sys filesystems.
+mount -t proc proc /proc
+mount -t sysfs none /sys
+
+# Do your stuff here.
+echo "This script just mounts and boots the rootfs, nothing else!"
+
+mount -o ro $(findfs $(cmdline root)) /mnt/root
+mount -t devtmpfs none /dev
+
+# Clean up.
+umount /proc
+umount /sys
+umount /dev
+
+# Boot the real thing.
+exec switch_root /mnt/root /sbin/init

@@ -1,0 +1,9 @@
+[Unit]
+Description=Run every two minute
+
+[Timer]
+OnCalendar=*-*-* *:0/2:00
+Unit=keep-external-disk-alive.service
+
+[Install]
+WantedBy=multi-user.target

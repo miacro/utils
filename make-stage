@@ -1,0 +1,40 @@
+#!/bin/sh
+function usage (){
+  echo "usage: make-initramfs [options] directory"
+  echo "  directory: the root directory"
+  echo "  options:"
+  echo "    -o --output output file, default: stage-squashfs.image"
+  echo "       --help usage"
+  exit
+}
+GETOPT_ARGS=`getopt -o o:h -l output:,help -- "$@"`
+eval set -- ${GETOPT_ARGS}
+
+output=""
+stage_root=""
+while [ ${1} ]
+do
+  case ${1} in
+    -o|--output) output=${2};shift 2; continue;;
+    --) shift 1; stage_root=${1}; shift 1; continue;;
+    -h|--help|*) usage;;
+  esac
+done
+
+if [[ ! -n ${output} ]]
+then
+  output=stage-squashfs.image
+fi
+
+if [[ ! -n ${stage_root} ]]
+then
+  usage
+fi
+
+exculed_files="proc/* run/* dev/* sys/*"
+exculed_files="${exculed_files} tmp/* var/tmp/* usr/tmp/*"
+exculed_files="${exculed_files} var/portage-files/* var/log/*"
+exculed_files="${exculed_files} var/cache/*"
+exculed_files="${exculed_files} __exclude"
+
+mksquashfs ${stage_root} ${output} -comp gzip -wildcards -e ${exculed_files}
