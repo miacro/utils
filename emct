@@ -1,0 +1,33 @@
+#!/usr/bin/env python
+import os
+import sys
+import logging
+
+
+def exec_emacs(args):
+    logging.debug("args: {}".format(args))
+    os.execvp(args[0], args)
+
+
+def main():
+    argtype = os.path.basename(sys.argv[0])[-2:]
+    argv = ["emacsclient", "-t", "-a", ""]
+    if argtype == "ct":
+        pass
+    elif argtype == "cx":
+        argv = ["emacsclient", "-nc", "-a", ""]
+    elif argtype == "at":
+        argv = ["emacs", "-nw"]
+    elif argtype == "ax":
+        argv = ["emacs"]
+    argv += sys.argv[1:]
+    logging.basicConfig(
+        format="[%(asctime)s]:%(levelname)s:%(name)s:%(message)s")
+    logging.getLogger().setLevel(logging.INFO)
+    logging.getLogger().name = "emacswrapper"
+    os.environ["LC_CTYPE"] = "zh_CN.UTF-8"
+    exec_emacs(argv)
+
+
+if __name__ == "__main__":
+    main()
