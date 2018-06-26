@@ -26,6 +26,7 @@ def main():
     logging.getLogger().setLevel(logging.INFO)
     logging.getLogger().name = "emacswrapper"
     os.environ["LC_CTYPE"] = "zh_CN.UTF-8"
+    os.environ["TERM"] = "xterm-256color"
     exec_emacs(argv)
 
 
