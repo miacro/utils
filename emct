@@ -15,7 +15,7 @@ def main():
     if argtype == "ct":
         pass
     elif argtype == "cx":
-        argv = ["emacsclient", "-nc", "-a", ""]
+        argv = ["emacsclient", "-c", "-a", ""]
     elif argtype == "at":
         argv = ["emacs", "-nw"]
     elif argtype == "ax":
