@@ -1,8 +1,0 @@
-#!/bin/bash
-dir=/tmp/create_ap_mylog
-if [ ! -d "$dir" ]; then
-	mkdir "$dir"
-fi
-sudo echo `date` >> $dir/erroroutput
-sudo echo `date` >> $dir/stdoutput
-sudo create_ap  wlp6s0 enp7s0 M_A_PO 012345678910aqws 2>>$dir/erroroutput 1>>$dir/stdoutput &
