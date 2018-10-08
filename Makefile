@@ -1,23 +1,13 @@
-SOURCE_DIR=`pwd`
-TARGET_DIR=${HOME}/bin/utils
+SRC=$(realpath .)
+DST=${HOME}/bin/utils
 MAKE=make --no-print-directory
 SHELL=/bin/bash
 
 reinstall:
-	@  ${MAKE} uninstall \
-	&& ${MAKE} install
-
-install: prepare_target
-	@  [[ ! -L ${TARGET_DIR} ]] && [[ ! -f ${TARGET_DIR} ]] \
-	&& ln -s ${SOURCE_DIR} ${TARGET_DIR} \
-	||  exit 0
+	mkdir -p `dirname ${DST}` \
+	&& ln -fs -T ${SRC} ${DST}
 
 uninstall:
-	@  [[ -L ${TARGET_DIR} ]] \
-	&& rm ${TARGET_DIR} \
-	|| exit 0
+	[[ -L ${DST} ]] && rm ${DST} || exit 0
 
-prepare_target:
-	@ mkdir -p ${HOME}/bin
-
-.PHONY: reinstall uninstall install 
+.PHONY: reinstall uninstall
