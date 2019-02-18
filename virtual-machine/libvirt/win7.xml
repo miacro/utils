@@ -28,6 +28,16 @@
       <target dev='hdb' bus='ide'/>
       <address type='drive' controller='0' bus='0' target='0' unit='1'/>
     </disk>
+    <disk type='block' device='disk'>
+      <driver name='qemu' type='raw'/>
+      <source dev='/dev/disk/by-id/ata-SanDisk_SDSSDP128G_151092402697'/>
+      <target dev='hdc' bus='virtio'/>
+    </disk>
+    <!--disk type='file' device='cdrom'>
+      <driver name='qemu' type='raw'/>
+      <source file='/home/miacro/warehouse/virtual-machine/virtio-win-0.1.160.iso'/>
+      <target dev='hdd' bus='sata'/>
+    </disk-->
     <controller type='usb' index='0' model='piix3-uhci'>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x2'/>
     </controller>
@@ -55,12 +65,12 @@
       <model type='vga' vram='16384' heads='1' primary='yes'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/>
     </video>
-      <hostdev mode='subsystem' type='usb'>
-        <source>
-          <vendor id='0x12d1'/>
-          <product id='0x107e'/>
-        </source>
-      </hostdev>
+    <!--hostdev mode='subsystem' type='usb'>
+      <source>
+        <vendor id='0x12d1'/>
+        <product id='0x107e'/>
+      </source>
+    </hostdevi-->
     <memballoon model='none'/>
   </devices>
 </domain>
