@@ -1,11 +1,15 @@
 <domain type='kvm'>
-  <name>win7</name>
+  <name>win10</name>
   <uuid>74523876-b394-4e78-a962-cd391c5ad4a9</uuid>
   <memory unit='KiB'>4194304</memory>
   <currentMemory unit='KiB'>4194304</currentMemory>
   <vcpu placement='static'>1</vcpu>
   <os>
     <type arch='x86_64' machine='pc-i440fx-2.7'>hvm</type>
+    <!--boot dev='network'/-->
+    <boot dev='cdrom'/>
+    <boot dev='hd'/>
+    <bootmenu enable='yes'/>
   </os>
   <features>
     <acpi/>
@@ -18,26 +22,32 @@
     <emulator>/usr/bin/qemu-system-x86_64</emulator>
     <disk type='file' device='disk'>
       <driver name='qemu' type='raw'/>
-      <source file='/home/miacro/warehouse/virtual-machine/qemu-win7_x64_C.img'/>
-      <target dev='hda' bus='ide'/>
+      <source file='/home/miacro/warehouse/virtual-machine/qemu-win10_x64_C.img'/>
+      <target dev='hda' bus='sata'/>
       <address type='drive' controller='0' bus='0' target='0' unit='0'/>
     </disk>
     <disk type='file' device='disk'>
       <driver name='qemu' type='raw'/>
-      <source file='/home/miacro/warehouse/virtual-machine/qemu-win7_x64_D.img'/>
-      <target dev='hdb' bus='ide'/>
+      <source file='/home/miacro/warehouse/virtual-machine/qemu-win10_x64_D.img'/>
+      <target dev='hdb' bus='sata'/>
       <address type='drive' controller='0' bus='0' target='0' unit='1'/>
     </disk>
-    <disk type='block' device='disk'>
+    <!--disk type='block' device='disk'>
       <driver name='qemu' type='raw'/>
-      <source dev='/dev/disk/by-id/ata-SanDisk_SDSSDP128G_151092402697'/>
-      <target dev='hdc' bus='virtio'/>
-    </disk>
+      <source dev='/dev/disk/by-id/ata-SanDisk_SSD_PLUS_240GB_185102463109'/>
+      <target dev='hdb' bus='virtio'/>
+    </disk-->
+    <!--disk type='file' device='cdrom'>
+      <driver name='qemu' type='raw'/>
+      <source file='/home/miacro/Downloads/win10/Win10_1809Oct_Chinese(Simplified)_x64.iso'/>
+      <target dev='hda' bus='sata'/>
+    </disk-->
     <!--disk type='file' device='cdrom'>
       <driver name='qemu' type='raw'/>
       <source file='/home/miacro/warehouse/virtual-machine/virtio-win-0.1.160.iso'/>
-      <target dev='hdd' bus='sata'/>
+      <target dev='hdc' bus='sata'/>
     </disk-->
+
     <controller type='usb' index='0' model='piix3-uhci'>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x2'/>
     </controller>
