@@ -10,31 +10,34 @@ function usage (){
 GETOPT_ARGS=`getopt -o s:h -l shell:,help -- "$@"`
 eval set -- ${GETOPT_ARGS}
 
-root_dir=""
-shell_bin=""
+ROOT_DIR=""
+SHELL_BIN=""
 
 while [ ${1} ]
 do
   case ${1} in
-    -s|--shell) shell_bin=${2};shift 2; continue;;
-    --) shift 1; root_dir=${1}; shift 1; continue;;
+    -s|--shell) SHELL_BIN=${2};shift 2; continue;;
+    --) shift 1; ROOT_DIR=${1}; shift 1; continue;;
     -h|--help|*) usage;;
   esac
 done
 
-if [[ ! -n ${shell_bin} ]]
+if [[ ! -n ${SHELL_BIN} ]]
 then
-  shell_bin=/bin/bash
+  SHELL_BIN=/bin/bash
 fi
 
-if [[ ! -n ${root_dir} ]]
+if [[ ! -n ${ROOT_DIR} ]]
 then
   usage
 fi
+ROOT_DIR=$(realpath ${ROOT_DIR})
 
-mount -t proc proc ${root_dir}/proc
-mount --rbind /sys ${root_dir}/sys
-mount --make-rslave ${root_dir}/sys
-mount --rbind /dev ${root_dir}/dev
-mount --make-rslave ${root_dir}/dev
-chroot ${root_dir}/ ${shell_bin}
+mount -t proc proc ${ROOT_DIR}/proc
+mount --rbind /sys ${ROOT_DIR}/sys
+mount --make-rslave ${ROOT_DIR}/sys
+mount --rbind /dev ${ROOT_DIR}/dev
+mount --make-rslave ${ROOT_DIR}/dev
+mount --rbind /run ${ROOT_DIR}/run
+mount --make-rslave ${ROOT_DIR}/run
+chroot ${ROOT_DIR}/ ${SHELL_BIN}
