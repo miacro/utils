@@ -40,4 +40,6 @@ mount --rbind /dev ${ROOT_DIR}/dev
 mount --make-rslave ${ROOT_DIR}/dev
 mount --rbind /run ${ROOT_DIR}/run
 mount --make-rslave ${ROOT_DIR}/run
+mount --rbind /tmp ${ROOT_DIR}/tmp
+mount --make-rslave ${ROOT_DIR}/tmp
 chroot ${ROOT_DIR}/ ${SHELL_BIN}
