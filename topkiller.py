@@ -15,6 +15,8 @@ except ImportError:
 def run_command(command):
     try:
         output = subprocess.check_output(shlex.split(command))
+        if isinstance(output, bytes):
+            output = output.decode("utf8")
         return list([line.strip() for line in StringIO(output).readlines()])
     except subprocess.CalledProcessError as e:
         logging.error(e.message)
@@ -26,7 +28,7 @@ def memory_usage():
        Retrun total, used
     """
     lines = run_command("free -m")
-    memory = filter(bool, lines[1].split(" "))
+    memory = [item for item in lines[1].split(" ") if item]
     return int(memory[1]), int(memory[2])
 
 
@@ -53,7 +55,7 @@ def kill_process_with_highest_memory():
     if not processusage:
         return
     statsline = processusage[1]
-    stats = filter(bool, statsline.split(" "))
+    stats = [item for item in statsline.split(" ") if item]
     pid = int(stats[0])
     os.kill(pid, signal.SIGKILL)
     message = "{}\n{}\n{}\n".format(
