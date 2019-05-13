@@ -35,6 +35,10 @@ def process_snapshot():
         "ps -e -o pid,uid,user,%cpu,%mem,rss,etime,start,args --sort -%mem")
 
 
+def broadcast_message(message):
+    run_command("wall '{}'".format(message))
+
+
 def user_home(user):
     lines = run_command("getent passwd {}".format(user))
     if lines:
@@ -52,14 +56,18 @@ def kill_process_with_highest_memory():
     stats = filter(bool, statsline.split(" "))
     pid = int(stats[0])
     os.kill(pid, signal.SIGKILL)
-    logging.warn("killed process {} with highest memory:".format(pid))
-    logging.warn(processusage[0])
-    logging.warn(processusage[1])
+    message = "{}\n{}\n{}\n".format(
+        "Killed process {} with highest memory:".format(pid),
+        processusage[0],
+        processusage[1],
+    )
+    logging.warn(message)
     user = stats[2]
     logfile = "{}/KILL-PROCESS-WITH-HIGHEST-MEMORY-{}.log".format(
         user_home(user), time.strftime("%Y%m%d%H%M%S"))
     with open(logfile, "wt") as file:
-        file.writelines("{}\n{}".format(processusage[0], processusage[1]))
+        file.writelines(message)
+    broadcast_message(message)
 
 
 def watch(memory_ratio):
