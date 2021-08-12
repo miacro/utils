@@ -34,5 +34,5 @@ fi
 
 find "${4}" ${find_args} -type f -print0 | while read -d $'\0' file
 do
-  replace "${file}" ${2} ${3}
+  replace "${file}" "${2}" "${3}"
 done
