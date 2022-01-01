@@ -5,7 +5,7 @@ SHELL=/bin/bash
 
 reinstall:
 	mkdir -p $$(dirname ${DST}) \
-	&& ln -fs -T ${SRC} ${DST}
+	&& ln -fs -n ${SRC} ${DST}
 
 uninstall:
 	[[ -L ${DST} ]] && rm ${DST} || exit 0
