@@ -17,15 +17,18 @@ def convert(input_file: str, output_file: str):
     output_dir = os.path.dirname(output_file)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
+    input_file = os.path.abspath(input_file)
+    output_file = os.path.abspath(output_file)
     input_file = shlex.quote(input_file)
     output_file = shlex.quote(output_file)
-    command = f"ffmpeg -i {input_file} -acodec {output_codec} {output_file}"
+    command = f"ffmpeg -i {input_file} -y -c:v copy -c:a {output_codec} {output_file}"
     subprocess.run(command, shell=True, check=True)
     return
 
 
 def find_files(file_type: str, base_dir: str) -> dict:
     base_dir = os.path.expanduser(os.path.expandvars(base_dir))
+    base_dir = os.path.abspath(base_dir)
     files = glob.glob(os.path.join(base_dir, "**", f"*.{file_type}"), recursive=True)
     result = {}
     for file in files:
