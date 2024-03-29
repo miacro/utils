@@ -44,8 +44,9 @@ def prepare_release_dir(commit, archive_file, output_dir):
     if not os.path.exists(commit_dir):
         os.makedirs(commit_dir)
     assert shutil.which("tar")
-    tar_args = "--no-same-owner -xvz --strip-components=1 "
+    tar_args = "--no-same-owner -xz --strip-components=1 "
     command = "tar {} -C {} -f {}".format(tar_args, commit_dir, archive_file)
+    logging.info("extract files from {} to {}".format(archive_file, commit_dir))
     subprocess.check_call(command, shell=True, text=True, env=os.environ)
 
 
@@ -84,7 +85,7 @@ def main():
     prefix = "server-{}".format(platform)
     if platform == "alpine":
         prefix = "cli-{}".format(platform)
-    archive_name = "vscode-{}-{}.tar.gz".format(prefix, arch)
+    archive_name = "vscode-{}-{}-{}.tar.gz".format(prefix, arch, commit)
     archive_file = os.path.join(args.output_dir, archive_name)
     download_release_file(
         commit=commit, prefix=prefix, arch=arch, archive_file=archive_file
