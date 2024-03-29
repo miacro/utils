@@ -14,6 +14,7 @@ def get_latest_release(platform, arch):
     curl_bin = shutil.which("curl")
     assert curl_bin, "curl not found"
     command = "curl -fsSL {}".format(url)
+    logging.info("exec command:\n\t{}".format(command))
     res = subprocess.check_output(command, shell=True, text=True, env=os.environ)
     try:
         commits = json.loads(res)
@@ -30,6 +31,7 @@ def download_release_file(commit, prefix, arch, archive_file):
         commit, prefix, arch
     )
     command = "curl -fSL -C - {} -o {}".format(url, archive_file)
+    logging.info("exec command:\n\t{}".format(command))
     subprocess.check_call(command, shell=True, text=True, env=os.environ)
     return
 
