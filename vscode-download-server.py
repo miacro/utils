@@ -45,11 +45,6 @@ def prepare_release_dir(commit, archive_file, output_dir):
     tar_args = "--no-same-owner -xvz --strip-components=1 "
     command = "tar {} -C {} -f {}".format(tar_args, commit_dir, archive_file)
     subprocess.check_call(command, shell=True, text=True, env=os.environ)
-    default_key = "default_version"
-    default_dir = os.path.join(bin_dir, default_key)
-    if not os.path.exists(default_dir):
-        command = "cd {} && ln -s {} {}".format(bin_dir, commit, default_key)
-        subprocess.check_call(command, text=True, shell=True)
 
 
 def main():
