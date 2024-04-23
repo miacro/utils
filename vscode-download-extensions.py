@@ -20,12 +20,28 @@ class ExtensionDownloader:
     )
 
     # {publisher} {publisher} {package} {version}
-    DOWNLOAD_URL = "https://{}.gallery.vsassets.io/_apis/public/gallery/publisher/{}/extension/{}/{}/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage"
+    # DOWNLOAD_URL = "https://{}.gallery.vsassets.io/_apis/public/gallery/publisher/{}/extension/{}/{}/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage"
+    # {publisher} {package} {version} {platform}
+    DOWNLOAD_URL = "https://marketplace.visualstudio.com/_apis/public/gallery/publishers/{}/vsextensions/{}/{}/vspackage"
+    PLATFORMS = {
+        "win32-x64": "Windows x64",
+        "win32-ia32": "Windows ia32",
+        "win32-arm64": "Windows ARM",
+        "linux-x64": "Linux x64",
+        "linux-arm64": "Linux ARM64",
+        "linux-armhf": "Linux ARM32",
+        "darwin-x64": "macOS Intel",
+        "darwin-arm64": "macOS Apple Silicon",
+        "alpine-x64": "Alpine Linux 64 bit",
+        "web": "Web",
+        "alpine-arm64": "Alpine Linux ARM64",
+    }
 
     def __init__(
         self,
         publisher,
         package,
+        platform,
         output_dir,
         version=None,
         cached=True,
@@ -34,6 +50,8 @@ class ExtensionDownloader:
         self.package = package
         self.output_dir = output_dir
         self.version = None
+        assert platform in self.PLATFORMS
+        self.platform = platform
         if isinstance(version, str) and version:
             self.version = version
         self.cached = cached
@@ -42,18 +60,22 @@ class ExtensionDownloader:
         publisher = self.publisher
         package = self.package
         version = self.version
+        platform = self.platform
         if not version:
-            query_info = self.extension_query(self.publisher, self.package)
-            if query_info is None:
+            version_info = self.extension_select_version(
+                self.publisher, self.package, self.platform
+            )
+            if version_info is None:
                 return False
-            version = query_info["versions"][0]["version"]
+            version = version_info["version"]
+            platform = version_info.get("targetPlatform", None)
 
         extension = self.get_extension(publisher, package, version)
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
         output_file = os.path.join(self.output_dir, "{}.vsix".format(extension))
         return self.extension_download(
-            self.publisher, self.package, version, output_file, self.cached
+            self.publisher, self.package, version, platform, output_file, self.cached
         )
 
     @classmethod
@@ -61,6 +83,27 @@ class ExtensionDownloader:
         if not version:
             return "{}.{}".format(publisher, package)
         return "{}.{}@{}".format(publisher, package, version)
+
+    @classmethod
+    def extension_select_version(cls, publisher, package, platform, query_data=None):
+        if query_data is None:
+            query_data = cls.extension_query(publisher=publisher, package=package)
+        extension = cls.get_extension(publisher, package)
+        try:
+            versions = query_data["versions"]
+            assert isinstance(versions, list)
+            for version in versions:
+                cur_platform = version.get("targetPlatform", None)
+                if cur_platform is not None and platform != cur_platform:
+                    continue
+                return version
+        except (KeyError, IndexError, AssertionError) as e:
+            message = "Query extension {} failed: {}".format(extension, query_data)
+            logging.error(message)
+            return
+        message = "Query extension {} version for {}".format(extension, platform)
+        logging.error(message)
+        return
 
     @classmethod
     def extension_query(cls, publisher, package):
@@ -77,7 +120,6 @@ class ExtensionDownloader:
         query_data = response.json()
         try:
             result = query_data["results"][0]["extensions"][0]
-            version = result["versions"][0]["version"]
         except (KeyError, IndexError):
             message = "Query extension {} failed: {}".format(extension, query_data)
             logging.error(message)
@@ -85,11 +127,15 @@ class ExtensionDownloader:
         return result
 
     @classmethod
-    def extension_download(cls, publisher, package, version, output_file, cached=True):
+    def extension_download(
+        cls, publisher, package, version, platform, output_file, cached=True
+    ):
         if not (publisher and package and version):
             assert 0, (publisher, package, version)
         extension = cls.get_extension(publisher, package, version)
-        download_url = cls.DOWNLOAD_URL.format(publisher, publisher, package, version)
+        download_url = cls.DOWNLOAD_URL.format(publisher, package, version)
+        if platform is not None:
+            download_url = "{}?targetPlatform={}".format(download_url, platform)
         logging.info("Downloading {}:\nURL: {}".format(extension, download_url))
         # use curl to show the progress bar
         curl_path = shutil.which("curl")
@@ -189,6 +235,24 @@ def str2bool(value):
     )
 
 
+def get_current_platform():
+    uname = os.uname()
+    sys_name = uname.sysname.lower()
+    arch = uname.machine.lower()
+    arch_map = {
+        "aarch64": "arm64",
+        "x86": "ia32",
+        "x86_64": "x64",
+        "armv7l": "armhf",
+        "arm32": "armhf",
+    }
+    arch = arch_map.get(arch, arch)
+    platform = "{}-{}".format(sys_name, arch)
+    if platform not in ExtensionDownloader.PLATFORMS:
+        return
+    return platform
+
+
 def main():
     logging.getLogger().setLevel(logging.INFO)
     logging.basicConfig(format="[%(asctime)s]:%(levelname)s: %(message)s")
@@ -221,6 +285,13 @@ Example:
         help="the download dir, default: ./vscode-vsix",
     )
     parser.add_argument(
+        "--platform",
+        default=get_current_platform(),
+        choices=sorted(ExtensionDownloader.PLATFORMS.keys()),
+        required=get_current_platform() is None,
+        help="the target platform",
+    )
+    parser.add_argument(
         "--cached",
         default=True,
         type=str2bool,
@@ -234,6 +305,7 @@ Example:
             publisher=publisher,
             package=package,
             version=version,
+            platform=args.platform,
             output_dir=args.download_dir,
             cached=args.cached,
         )
