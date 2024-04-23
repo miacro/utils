@@ -61,14 +61,13 @@ class ExtensionDownloader:
         package = self.package
         version = self.version
         platform = self.platform
-        if not version:
-            version_info = self.extension_select_version(
-                self.publisher, self.package, self.platform
-            )
-            if version_info is None:
-                return False
-            version = version_info["version"]
-            platform = version_info.get("targetPlatform", None)
+        version_info = self.extension_select_version(
+            self.publisher, self.package, self.platform, version=version
+        )
+        if version_info is None:
+            return False
+        version = version_info["version"]
+        platform = version_info.get("targetPlatform", None)
 
         extension = self.get_extension(publisher, package, version)
         if not os.path.exists(self.output_dir):
@@ -85,23 +84,27 @@ class ExtensionDownloader:
         return "{}.{}@{}".format(publisher, package, version)
 
     @classmethod
-    def extension_select_version(cls, publisher, package, platform, query_data=None):
-        if query_data is None:
-            query_data = cls.extension_query(publisher=publisher, package=package)
+    def extension_select_version(cls, publisher, package, platform, version=None):
+        query_data = cls.extension_query(publisher=publisher, package=package)
         extension = cls.get_extension(publisher, package)
         try:
-            versions = query_data["versions"]
-            assert isinstance(versions, list)
-            for version in versions:
-                cur_platform = version.get("targetPlatform", None)
+            query_versions = query_data["versions"]
+            assert isinstance(query_versions, list)
+            for query_version in query_versions:
+                cur_version = query_version.get("version", None)
+                if version is not None and version != cur_version:
+                    continue
+                cur_platform = query_version.get("targetPlatform", None)
                 if cur_platform is not None and platform != cur_platform:
                     continue
-                return version
+                return query_version
         except (KeyError, IndexError, AssertionError) as e:
             message = "Query extension {} failed: {}".format(extension, query_data)
             logging.error(message)
             return
-        message = "Query extension {} version for {}".format(extension, platform)
+        message = "Query extension {} on {} for version".format(extension, platform)
+        if version is not None:
+            message = "{} {}".format(message, version)
         logging.error(message)
         return
 
