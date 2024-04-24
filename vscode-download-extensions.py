@@ -87,8 +87,12 @@ class ExtensionDownloader:
 
     @classmethod
     def extension_select_version(cls, publisher, package, platform, version=None):
-        query_data = cls.extension_query(publisher=publisher, package=package)
         extension = cls.get_extension(publisher, package)
+        try:
+            query_data = cls.extension_query(publisher=publisher, package=package)
+        except Exception as e:
+            logging.error("Query extension {} failed: {}".format(extension, e))
+            return None, None
         try:
             query_versions = query_data["versions"]
             assert isinstance(query_versions, list)
