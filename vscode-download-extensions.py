@@ -160,9 +160,9 @@ class ExtensionDownloader:
         curl_path = shutil.which("curl")
         if curl_path is None:
             assert 0, "command curl not found"
-        curl_args = "-fSL"
+        curl_args = "-fSL --compressed"
         if cached:
-            curl_args = "{} --compressed -C -".format(curl_args)
+            curl_args = "{} -C -".format(curl_args)
         download_command = "{} {} {} -o {}".format(
             curl_path, curl_args, download_url, output_file
         )
