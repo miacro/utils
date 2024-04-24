@@ -7,6 +7,7 @@ import argparse
 import logging
 import subprocess
 import shutil
+import gzip
 
 
 class ExtensionDownloader:
@@ -72,6 +73,10 @@ class ExtensionDownloader:
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
         output_file = os.path.join(self.output_dir, "{}.vsix".format(extension))
+        if self.cached:
+            if os.path.exists(output_file):
+                logging.info("{} already exists, skip download".format(output_file))
+                return True
         return self.extension_download(
             self.publisher, self.package, version, platform, output_file, self.cached
         )
@@ -160,11 +165,13 @@ class ExtensionDownloader:
         curl_path = shutil.which("curl")
         if curl_path is None:
             assert 0, "command curl not found"
-        curl_args = "-fSL --compressed"
+        head_file = "{}.header".format(output_file)
+        body_file = "{}.downloading".format(output_file)
+        curl_args = "-fSL"
         if cached:
             curl_args = "{} -C -".format(curl_args)
-        download_command = "{} {} {} -o {}".format(
-            curl_path, curl_args, download_url, output_file
+        download_command = "{} {} {} -o {} -D {}".format(
+            curl_path, curl_args, download_url, body_file, head_file
         )
         logging.debug("Exec command: {}".format(download_command))
         res = subprocess.run(
@@ -178,6 +185,22 @@ class ExtensionDownloader:
         success = res.returncode == 0
         if not success:
             logging.error("Download {} failed".format(extension))
+
+        compressed = None
+        with open(head_file, "rt") as file:
+            for line in file.readlines():
+                line = line.strip().lower()
+                if line.startswith("content-encoding"):
+                    compressed = line.split(":")[-1].strip()
+                    break
+        with open(body_file, "rb") as file:
+            data = file.read()
+            if compressed is not None and "gzip" in compressed:
+                data = gzip.decompress(data)
+        with open(output_file, "wb") as file:
+            file.write(data)
+        os.remove(head_file)
+        os.remove(body_file)
         return success
 
 
@@ -312,7 +335,12 @@ Example:
         type=str2bool,
         help="use file cache or not, default: True",
     )
+    parser.add_argument(
+        "--verbose", default=False, action="store_true", help="show more debug messages"
+    )
     args = parser.parse_args()
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
     extensions = list_full_extensions(args.extensions)
     failed = []
     for publisher, package, version, platform in extensions:
