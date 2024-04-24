@@ -162,7 +162,7 @@ class ExtensionDownloader:
             assert 0, "command curl not found"
         curl_args = "-fSL"
         if cached:
-            curl_args = "{} -C -".format(curl_args)
+            curl_args = "{} --compressed -C -".format(curl_args)
         download_command = "{} {} {} -o {}".format(
             curl_path, curl_args, download_url, output_file
         )
