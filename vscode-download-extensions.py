@@ -186,21 +186,25 @@ class ExtensionDownloader:
         if not success:
             logging.error("Download {} failed".format(extension))
 
-        compressed = None
-        with open(head_file, "rt") as file:
-            for line in file.readlines():
-                line = line.strip().lower()
-                if line.startswith("content-encoding"):
-                    compressed = line.split(":")[-1].strip()
-                    break
-        with open(body_file, "rb") as file:
-            data = file.read()
-            if compressed is not None and "gzip" in compressed:
-                data = gzip.decompress(data)
-        with open(output_file, "wb") as file:
-            file.write(data)
-        os.remove(head_file)
-        os.remove(body_file)
+        try:
+            compressed = None
+            with open(head_file, "rt") as file:
+                for line in file.readlines():
+                    line = line.strip().lower()
+                    if line.startswith("content-encoding"):
+                        compressed = line.split(":")[-1].strip()
+                        break
+            with open(body_file, "rb") as file:
+                data = file.read()
+                if compressed is not None and "gzip" in compressed:
+                    data = gzip.decompress(data)
+            with open(output_file, "wb") as file:
+                file.write(data)
+            os.remove(head_file)
+            os.remove(body_file)
+        except Exception as e:
+            logging.error("Download extension {} failed: {}".format(extension, e))
+            return False
         return success
 
 
