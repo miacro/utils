@@ -50,7 +50,8 @@ class ExtensionDownloader:
         self.package = package
         self.output_dir = output_dir
         self.version = None
-        assert platform in self.PLATFORMS
+        if platform is not None:
+            assert platform in self.PLATFORMS, (platform, self.PLATFORMS)
         self.platform = platform
         if isinstance(version, str) and version:
             self.version = version
@@ -61,15 +62,13 @@ class ExtensionDownloader:
         package = self.package
         version = self.version
         platform = self.platform
-        version_info = self.extension_select_version(
-            self.publisher, self.package, self.platform, version=version
-        )
-        if version_info is None:
+        if version is None:
+            version, platform = self.extension_select_version(
+                self.publisher, self.package, self.platform, version=version
+            )
+        if version is None:
             return False
-        version = version_info["version"]
-        platform = version_info.get("targetPlatform", None)
-
-        extension = self.get_extension(publisher, package, version)
+        extension = self.get_extension(publisher, package, version, platform)
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
         output_file = os.path.join(self.output_dir, "{}.vsix".format(extension))
@@ -78,10 +77,13 @@ class ExtensionDownloader:
         )
 
     @classmethod
-    def get_extension(cls, publisher, package, version=None):
-        if not version:
-            return "{}.{}".format(publisher, package)
-        return "{}.{}@{}".format(publisher, package, version)
+    def get_extension(cls, publisher, package, version=None, platform=None):
+        extension = "{}.{}".format(publisher, package)
+        if version:
+            extension = "{}@{}".format(extension, version)
+        if platform:
+            extension = "{}={}".format(extension, platform)
+        return extension
 
     @classmethod
     def extension_select_version(cls, publisher, package, platform, version=None):
@@ -97,18 +99,18 @@ class ExtensionDownloader:
                 cur_platform = query_version.get("targetPlatform", None)
                 if cur_platform is not None and platform != cur_platform:
                     continue
-                return query_version
+                return cur_version, cur_platform
         except (KeyError, IndexError, AssertionError) as e:
             message = "Query extension {} failed: {}".format(extension, query_data)
             logging.error(message)
-            return
+            return None, None
         message = "Query extension {} failed: on {} for version".format(
             extension, platform
         )
         if version is not None:
             message = "{} {}".format(message, version)
         logging.error(message)
-        return
+        return None, None
 
     @classmethod
     def extension_query(cls, publisher, package, flags=None):
@@ -125,9 +127,8 @@ class ExtensionDownloader:
             }
         ]
         payload = json.dumps(payload)
-        session = requests.Session()
         logging.info("Querying extension {}".format(extension))
-        response = session.post(cls.QUERY_URL, headers=cls.HEADERS, data=payload)
+        response = requests.post(cls.QUERY_URL, headers=cls.HEADERS, data=payload)
         if response.status_code != 200:
             logging.error("Query extension {} failed".format(extension))
             return
@@ -146,7 +147,7 @@ class ExtensionDownloader:
     ):
         if not (publisher and package and version):
             assert 0, (publisher, package, version)
-        extension = cls.get_extension(publisher, package, version)
+        extension = cls.get_extension(publisher, package, version, platform)
         download_url = cls.DOWNLOAD_URL.format(publisher, package, version)
         if platform is not None:
             download_url = "{}?targetPlatform={}".format(download_url, platform)
@@ -177,23 +178,21 @@ class ExtensionDownloader:
 
 
 def list_full_extensions(extensions):
+    def strip_suffix(line, mark):
+        loc = line.rfind(mark)
+        if loc < 0:
+            return line, None
+        return line[:loc], line[loc + 1 :]
+
     def parse_ext_line(ext_line):
         if not isinstance(ext_line, str):
             assert 0, "Invalid extension: {}".format(ext_line)
-        v_loc = ext_line.rfind("@")
-        version = None
-        if v_loc >= 0:
-            version = ext_line[v_loc + 1 :]
-        else:
-            v_loc = len(ext_line)
-        p_loc = ext_line[:v_loc].rfind(".")
-        if p_loc < 0:
+        ext_prefix, platform = strip_suffix(ext_line, "=")
+        ext_prefix, version = strip_suffix(ext_prefix, "@")
+        publisher, package = strip_suffix(ext_prefix, ".")
+        if package is None:
             assert 0, "Invalid extension: {}".format(ext_line)
-        publisher = ext_line[:p_loc]
-        package = ext_line[p_loc + 1 : v_loc]
-        if not version:
-            version = None
-        return publisher, package, version
+        return publisher, package, version, platform
 
     def parse_ext_dict(ext_data):
         if isinstance(ext_data, str):
@@ -207,10 +206,15 @@ def list_full_extensions(extensions):
         version = ext_data.get("version", None)
         if not version:
             version = None
+        platform = ext_data.get("metadata", {}).get("targetPlatform", None)
+        if platform is not None:
+            platform = platform.lower()
+            if platform in ("undefined", "none"):
+                platform = None
         if not ext_name:
             assert 0, "Invalid extension: {}".format(ext_data)
-        publisher, package, _ = parse_ext_line(ext_name)
-        return publisher, package, version
+        publisher, package, _, _ = parse_ext_line(ext_name)
+        return publisher, package, version, platform
 
     result = []
     for ext in extensions:
@@ -299,13 +303,6 @@ Example:
         help="the download dir, default: ./vscode-vsix",
     )
     parser.add_argument(
-        "--platform",
-        default=get_current_platform(),
-        choices=sorted(ExtensionDownloader.PLATFORMS.keys()),
-        required=get_current_platform() is None,
-        help="the target platform",
-    )
-    parser.add_argument(
         "--cached",
         default=True,
         type=str2bool,
@@ -314,18 +311,19 @@ Example:
     args = parser.parse_args()
     extensions = list_full_extensions(args.extensions)
     failed = []
-    for publisher, package, version in extensions:
+    for publisher, package, version, platform in extensions:
         downloader = ExtensionDownloader(
             publisher=publisher,
             package=package,
             version=version,
-            platform=args.platform,
+            platform=platform,
             output_dir=args.download_dir,
             cached=args.cached,
         )
         success = downloader.download()
         if not success:
-            failed.append(downloader.get_extension(publisher, package, version))
+            ext_name = downloader.get_extension(publisher, package, version, platform)
+            failed.append(ext_name)
         logging.info("=" * 50)
     if failed:
         logging.error("Download some failed:\n{}".format(" ".join(failed)))
