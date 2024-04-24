@@ -102,7 +102,9 @@ class ExtensionDownloader:
             message = "Query extension {} failed: {}".format(extension, query_data)
             logging.error(message)
             return
-        message = "Query extension {} on {} for version".format(extension, platform)
+        message = "Query extension {} failed: on {} for version".format(
+            extension, platform
+        )
         if version is not None:
             message = "{} {}".format(message, version)
         logging.error(message)
