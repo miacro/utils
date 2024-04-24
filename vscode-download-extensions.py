@@ -109,10 +109,19 @@ class ExtensionDownloader:
         return
 
     @classmethod
-    def extension_query(cls, publisher, package):
+    def extension_query(cls, publisher, package, flags=None):
         extension = cls.get_extension(publisher, package)
-        payload = {"flags": 914}
-        payload["filters"] = [{"criteria": [{"filterType": 7, "value": extension}]}]
+        if flags is None:
+            # query for versions
+            flags = 0x55
+        payload = {"flags": flags}
+        payload["filters"] = [
+            {
+                "criteria": [{"filterType": 7, "value": extension}],
+                "pageNumber": 1,
+                "pageSize": 10,
+            }
+        ]
         payload = json.dumps(payload)
         session = requests.Session()
         logging.info("Querying extension {}".format(extension))
