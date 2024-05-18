@@ -213,7 +213,7 @@ def list_full_extensions(extensions):
         loc = line.rfind(mark)
         if loc < 0:
             return line, None
-        return line[:loc], line[loc + 1 :]
+        return line[:loc], line[loc + len(mark) :]
 
     def parse_ext_line(ext_line):
         if not isinstance(ext_line, str):
