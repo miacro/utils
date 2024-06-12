@@ -324,7 +324,7 @@ Example:
         nargs="+",
         required=True,
         help="""list of extensions to be downloaded, each is one of the following:
-    1. in the format: '<publisher>.<package>[@version]';
+    1. in the format: '<publisher>.<package>[@version][=platform]';
     2. the vscode extensions.json;
     3. the output of `code --list-extensions --show-versions`""",
     )
