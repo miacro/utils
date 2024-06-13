@@ -218,6 +218,7 @@ def list_full_extensions(extensions):
     def parse_ext_line(ext_line):
         if not isinstance(ext_line, str):
             assert 0, "Invalid extension: {}".format(ext_line)
+        ext_line = ext_line.removesuffix(".vsix")
         ext_prefix, platform = strip_suffix(ext_line, "=")
         ext_prefix, version = strip_suffix(ext_prefix, "@")
         publisher, package = strip_suffix(ext_prefix, ".")
