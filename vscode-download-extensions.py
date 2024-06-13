@@ -103,6 +103,8 @@ class ExtensionDownloader:
             assert isinstance(query_versions, list)
             for query_version in query_versions:
                 cur_version = query_version.get("version", None)
+                if cur_version is None:
+                    continue
                 if version is not None and version != cur_version:
                     continue
                 cur_platform = query_version.get("targetPlatform", None)
