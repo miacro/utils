@@ -1,0 +1,10 @@
+[Unit]
+Description=phony game host serice
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/phony-game-host.py
+
+[Install]
+WantedBy=multi-user.target
