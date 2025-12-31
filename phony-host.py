@@ -42,9 +42,7 @@ def ask_response(ask_ip):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Fake Console - A fake UDP console responder for testing."
-    )
+    parser = argparse.ArgumentParser(description="Phony host type")
     parser.add_argument(
         "--host-type",
         default="SteamDeck",
