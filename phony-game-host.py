@@ -54,16 +54,16 @@ def main():
     parser = argparse.ArgumentParser(description="Phony game host type")
     parser.add_argument(
         "--host-type",
-        default="SteamDeck",
+        default="steam_deck",
         choices=[
-            "PS4",
-            "PS5",
-            "Windows",
-            "SteamDeck",
-            "Xbox X",
-            "Xbox S",
-            "Switch",
-            "Switch 2",
+            "ps4",
+            "ps5",
+            "windows",
+            "steam_deck",
+            "xboxx",
+            "xboxs",
+            # "switch",
+            # "switch2",
         ],
     )
     parser.add_argument(
