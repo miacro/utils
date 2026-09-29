@@ -135,6 +135,8 @@ SCREEN_FILE_PATTERN = re.compile(
     flags=re.IGNORECASE,
 )
 RESOLUTION_PATTERN = re.compile(r"^(\d+)x(\d+)$", flags=re.IGNORECASE)
+GAMESCOPE_LONG_OPTION_PREFIX = "--gs-"
+GAMESCOPE_SHORT_OPTION_PREFIX = "-gs-"
 
 
 # ============================================================
@@ -948,6 +950,43 @@ def parse_window_mode(value):
     return mode
 
 
+def extract_gamescope_options(argv):
+    """Extract generic --gs-* and -gs-* Gamescope options."""
+    script_args = []
+    gamescope_args = []
+    before_command = True
+
+    for argument in argv:
+        if argument == "--":
+            before_command = False
+            script_args.append(argument)
+        elif before_command and argument.startswith(
+            GAMESCOPE_LONG_OPTION_PREFIX
+        ):
+            option = argument[len(GAMESCOPE_LONG_OPTION_PREFIX) :]
+            if not option or option.startswith("="):
+                raise ValueError(
+                    "invalid Gamescope passthrough option: {}".format(argument)
+                )
+            gamescope_args.append("--" + option)
+        elif before_command and argument.startswith(
+            GAMESCOPE_SHORT_OPTION_PREFIX
+        ):
+            option = argument[len(GAMESCOPE_SHORT_OPTION_PREFIX) :]
+            name, separator, value = option.partition("=")
+            if len(name) != 1 or (separator and not value):
+                raise ValueError(
+                    "invalid Gamescope passthrough option: {}".format(argument)
+                )
+            gamescope_args.append("-" + name)
+            if separator:
+                gamescope_args.append(value)
+        else:
+            script_args.append(argument)
+
+    return script_args, gamescope_args
+
+
 # ============================================================
 # Screen selectors
 # ============================================================
@@ -1194,6 +1233,14 @@ def build_gamescope_command(args, command, output, width, height):
         gamescope.extend(["--display-index", str(args.display_index)])
         log_info("Gamescope display index: {}".format(args.display_index))
 
+    gamescope.extend(args.gamescope_args)
+    if args.gamescope_args:
+        log_info(
+            "Additional Gamescope options: {}".format(
+                format_command(args.gamescope_args)
+            )
+        )
+
     return gamescope + ["--"] + command
 
 
@@ -1222,6 +1269,12 @@ Examples:
 
     %(prog)s -w f -r 4K -- ./game
     %(prog)s --window fullscreen -r 4K -- ./game
+
+  Additional Gamescope options:
+
+    %(prog)s -r 4K --gs-mangoapp -- ./game
+    %(prog)s -r 4K --gs-adaptive-sync --gs-framerate-limit=60 -- ./game
+    %(prog)s -r 4K -gs-e -gs-r=60 -- ./game
 
   Borderless:
 
@@ -1348,6 +1401,18 @@ Notes:
       --display-index N
 
   -d N uses Gamescope's own display-index.
+
+  Any --gs-OPTION or -gs-X before the game command is passed to Gamescope
+  without being validated against a list in this script. Use
+  --gs-OPTION=VALUE or -gs-X=VALUE for an option that takes a value.
+  For example:
+
+      --gs-mangoapp              -> --mangoapp
+      --gs-framerate-limit=60    -> --framerate-limit=60
+      -gs-e                      -> -e
+      -gs-r=60                   -> -r 60
+
+  Options after the '--' separator belong to the game and are not rewritten.
 """
 
 
@@ -1355,6 +1420,11 @@ def build_parser():
     parser = argparse.ArgumentParser(
         description="Simplified Gamescope launcher",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Gamescope passthrough: use --gs-OPTION[=VALUE] for long "
+            "options or -gs-X[=VALUE] for short options before the "
+            "game command."
+        ),
     )
 
     class FullHelpAction(argparse.Action):
@@ -1436,7 +1506,12 @@ def main():
     global LOG_LEVEL
 
     parser = build_parser()
-    args = parser.parse_args()
+    try:
+        script_args, gamescope_args = extract_gamescope_options(sys.argv[1:])
+    except ValueError as error:
+        parser.error(str(error))
+    args = parser.parse_args(script_args)
+    args.gamescope_args = gamescope_args
 
     LOG_LEVEL = LogLevel[args.log_level]
     log_debug("Log level: {}".format(LOG_LEVEL.name))
@@ -1477,7 +1552,7 @@ def main():
         log_info("Matched monitor: {}".format(output.name))
         log_info("Monitor detector: {}".format(output.source))
     log_info("Launching Gamescope")
-    log_debug("Gamescope command: {}".format(format_command(gamescope_command)))
+    log_info("Gamescope command: {}".format(format_command(gamescope_command)))
     log_trace("Gamescope argv: {!r}".format(gamescope_command))
 
     try:
